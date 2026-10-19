@@ -1,6 +1,6 @@
-# Still Sudoku
+# Sudoku
 
-A self-contained Sudoku app for the browser. It uses no backend, accounts, build step, or external assets. Games and statistics are saved in the current browser with `localStorage`.
+A modern, self-contained Sudoku app for the browser. It uses no backend, accounts, build step, or external assets. Games and statistics are saved in the current browser with `localStorage`.
 
 ## Play locally
 
@@ -22,6 +22,7 @@ The app works from a project path (for example, `https://username.github.io/repo
 - Per-game history, solve times, mistakes, hints, streak, average and best time.
 - Share links for active puzzles and completed games, plus a JSON stats export.
 - Light, dark, Forest, Ocean, Rose, and Sunset themes in the settings menu.
+- Responsive modern interface with a large game board, focused controls, live board progress, and quick access to all statistics.
 
 ## Storage and privacy
 
