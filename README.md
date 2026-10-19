@@ -21,3 +21,8 @@ The app works from a project path (for example, `https://username.github.io/repo
 - Notes, hints, undo, pause, keyboard input, conflict highlighting, and autosave.
 - Per-game history, solve times, mistakes, hints, streak, average and best time.
 - Share links for active puzzles and completed games, plus a JSON stats export.
+- Light, dark, Forest, Ocean, Rose, and Sunset themes in the settings menu.
+
+## Storage and privacy
+
+Game state, history, and preferences are saved in the browser's local storage on the device. There is no account, cloud sync, or game database. Browser storage is not encrypted, can be accessed by someone using the same browser profile, and is removed if the site's stored data is cleared. A share link contains the puzzle and its filled cells, but not game statistics; anyone with that link can open the puzzle.
