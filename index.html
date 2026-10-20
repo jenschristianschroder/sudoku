@@ -47,7 +47,8 @@
     [data-theme] .board{background:var(--board-bg);border-color:var(--board-strong);box-shadow:0 12px 26px var(--board-shadow)}
     [data-theme] .cell{color:var(--cell-accent);border-color:var(--board-line)}
     [data-theme] .cell.given{color:var(--given)}
-    [data-theme] .cell:nth-child(3n):not(:nth-child(9n)),[data-theme] .cell:nth-child(n+19):nth-child(-n+27),[data-theme] .cell:nth-child(n+46):nth-child(-n+54){border-color:var(--board-strong)}
+    [data-theme] .cell:nth-child(3n):not(:nth-child(9n)){border-right-color:var(--board-strong)}
+    [data-theme] .cell:nth-child(n+19):nth-child(-n+27),[data-theme] .cell:nth-child(n+46):nth-child(-n+54){border-bottom-color:var(--board-strong)}
     [data-theme] .cell.peer{background:var(--peer)}[data-theme] .cell.same{background:var(--same)}[data-theme] .cell.selected{background:var(--selected)!important;box-shadow:inset 0 0 0 3px var(--selected-ring)}
     [data-theme] .metric,[data-theme] .tool-btn,[data-theme] .text-btn,[data-theme] .stat,[data-theme] .storage-row,[data-theme] .level-row,[data-theme] .level-icon{background:var(--soft);color:var(--button-text)}
     [data-theme] .num-btn,[data-theme] .icon-btn,[data-theme] .mini-btn,[data-theme] .secondary-btn{background:var(--button);border-color:var(--line);color:var(--green)}
