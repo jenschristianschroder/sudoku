@@ -80,16 +80,18 @@
       .difficulty-tab .lock{margin-left:1px;font-size:8px}
       #playScreen.screen.active{display:flex;flex:1 1 auto;min-height:0}
       #statsScreen.screen.active{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-bottom:16px}
-      .play-shell{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;align-items:stretch;width:100%;height:100%;min-height:0;max-width:600px;margin:0 auto;gap:5px}
-      .game-panel{display:grid;grid-template-rows:minmax(0,1fr) auto;justify-items:center;align-items:stretch;gap:4px;width:100%;min-width:0;min-height:0;padding:5px;border-radius:14px}
+      .play-shell{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;align-items:stretch;width:100%;height:100%;min-width:0;min-height:0;max-width:600px;margin:0 auto;gap:5px}
+      .game-panel{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;justify-items:center;align-items:stretch;gap:4px;width:100%;min-width:0;min-height:0;overflow:hidden;padding:5px;border-radius:14px}
       .game-head{display:none}
-      .board-wrap{height:min(100%,calc(100vw - 28px));width:auto;max-width:100%;min-height:0;aspect-ratio:1;justify-self:center;align-self:center;margin:0}
-      .board{width:100%;height:100%;aspect-ratio:1;border-width:2px;border-radius:5px}
-      .cell{font-size:clamp(13px,4.3vw,23px)}
+      /* An explicit inline size avoids intrinsic button widths stretching the board. JS
+         further caps it to the actual grid row height after the phone viewport settles. */
+      .board-wrap{width:var(--mobile-board-size,min(100%,calc(100dvh - 310px)));height:auto;min-width:0;min-height:0;max-width:100%;max-height:100%;aspect-ratio:1;justify-self:center;align-self:center;margin:0}
+      .board{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));grid-template-rows:repeat(9,minmax(0,1fr));width:100%;height:100%;min-width:0;min-height:0;aspect-ratio:1;border-width:2px;border-radius:5px}
+      .cell{min-width:0;min-height:0;overflow:hidden;font-size:clamp(13px,4.3vw,23px)}
       .notes{font-size:clamp(5px,1.5vw,8px);inset:1px}
-      .board-number-pad{width:100%;min-width:0;margin:0}
-      .board-number-pad .numbers{grid-template-columns:repeat(9,minmax(0,1fr));gap:3px;margin:0}
-      .board-number-pad .num-btn{height:40px;min-width:0;font-size:clamp(16px,5vw,21px);border-radius:8px}
+      .board-number-pad{width:100%;max-width:100%;min-width:0;overflow:hidden;margin:0}
+      .board-number-pad .numbers{width:100%;min-width:0;grid-template-columns:repeat(9,minmax(0,1fr));gap:3px;margin:0}
+      .board-number-pad .num-btn{width:100%;height:40px;min-width:0;font-size:clamp(16px,5vw,21px);border-radius:8px}
       .control-column{display:block;min-width:0}
       .control-panel{display:grid;grid-template-columns:minmax(0,1fr);gap:5px;padding:7px;border-radius:14px}
       .session-head{min-height:24px;padding:0;border:0}
@@ -243,9 +245,31 @@
   function showView(v){currentView=v;$('#playScreen').classList.toggle('active',v==='play');$('#statsScreen').classList.toggle('active',v==='stats');renderDifficultyNav();if(v==='stats'){renderStats();renderHistory()}}
   function modal(title,text,yes,cb,danger=false){$('#modalTitle').textContent=title;$('#modalText').textContent=text;$('#modalConfirm').textContent=yes;$('#modalConfirm').classList.toggle('danger',danger);$('#modalBackdrop').classList.add('open');$('#modalConfirm').onclick=()=>{$('#modalBackdrop').classList.remove('open');cb()};$('#modalCancel').onclick=()=>$('#modalBackdrop').classList.remove('open')}
   function bind(){ $$('[data-view]').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));$('#settingsToggle').onclick=()=>{const menu=$('#settingsMenu');menu.hidden=!menu.hidden;$('#settingsToggle').setAttribute('aria-expanded',String(!menu.hidden));if(!menu.hidden)renderSettings()};$('#settingsClose').onclick=()=>{closeSettings();$('#settingsToggle').focus()};$('#moreThemesToggle').onclick=()=>{const extra=$('#extraThemes'),open=extra.hidden;extra.hidden=!open;$('#moreThemesToggle').setAttribute('aria-expanded',String(open));$('#moreThemesToggle span:last-child').textContent=open?'⌄':'›'};$$('[data-theme-choice]').forEach(b=>b.onclick=()=>setTheme(b.dataset.themeChoice));$('#progressionToggle').onclick=()=>{data.unlockAll=!data.unlockAll;saveData();render();toast(data.unlockAll?'All difficulties are now available':'Progression requirements restored')};$('#refreshAppBtn').onclick=refreshApp;$('#settingsExport').onclick=()=>{closeSettings();$('#exportBtn').click()};$('#settingsDelete').onclick=()=>{closeSettings();modal('Delete all device data?','This permanently removes your active puzzle, game history, statistics, progression, gameplay settings, and saved theme from this browser. This cannot be undone.','Delete everything',()=>{try{localStorage.removeItem(KEY);location.reload()}catch{toast('Could not delete data in this browser.')}},true)};document.addEventListener('pointerdown',e=>{if(!e.target.closest('.profile-menu-wrap'))closeSettings()});$('#notesBtn').onclick=()=>{notesMode=!notesMode;render()};$('#hintBtn').onclick=hint;$('#eraseBtn').onclick=erase;$('#undoBtn').onclick=undo;$('#newBtn').onclick=()=>modal('Start a new puzzle?','Your current puzzle is saved automatically. You can come back to it later.','New puzzle',()=>newGame(getLevel()));$('#pauseBtn').onclick=()=>setPaused(!paused);$('#resumeBtn').onclick=()=>setPaused(false);$('#shareActive').onclick=()=>{if(game)share(game)};$('#levelInfo').onclick=()=>toast(data.unlockAll?'All difficulty levels are available.':'Solve puzzles to unlock new levels: 3, 8, 15, then 25.');$('#exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),games:data.games,streak:data.streak},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='sudoku-stats.json';a.click();URL.revokeObjectURL(a.href)};document.addEventListener('keydown',e=>{if(e.target.matches('input,textarea'))return;if(e.key==='Escape'&&!$('#settingsMenu').hidden){closeSettings();$('#settingsToggle').focus();return}if(/^[1-9]$/.test(e.key))enter(+e.key);else if(e.key==='Backspace'||e.key==='Delete')erase();else if(e.key.toLowerCase()==='n'){notesMode=!notesMode;render()}else if(e.key==='ArrowRight'&&selected>=0){selected=Math.min(80,selected+1);renderBoard()}else if(e.key==='ArrowLeft'&&selected>=0){selected=Math.max(0,selected-1);renderBoard()}else if(e.key==='Escape'&&$('#modalBackdrop').classList.contains('open'))$('#modalBackdrop').classList.remove('open')});}
+  // Measure the real game panel instead of trusting a viewport-width-only board size.
+  // This also handles the iOS browser chrome, home-screen safe areas and rotations.
+  function fitMobileBoard(){
+    const wrap=$('.board-wrap'),panel=$('.game-panel'),pad=$('.board-number-pad');
+    const phone=matchMedia('(max-width:760px), (max-width:960px) and (orientation:landscape) and (max-height:500px)').matches;
+    if(!phone){wrap.style.removeProperty('--mobile-board-size');return}
+    const style=getComputedStyle(panel);
+    const insetX=(parseFloat(style.paddingLeft)||0)+(parseFloat(style.paddingRight)||0);
+    const insetY=(parseFloat(style.paddingTop)||0)+(parseFloat(style.paddingBottom)||0);
+    const gap=parseFloat(style.rowGap)||0;
+    const availableWidth=panel.clientWidth-insetX;
+    const availableHeight=panel.clientHeight-insetY-pad.offsetHeight-gap;
+    const size=Math.max(0,Math.floor(Math.min(availableWidth,availableHeight)));
+    wrap.style.setProperty('--mobile-board-size',size+'px');
+  }
+  if(typeof ResizeObserver!=='undefined'){
+    const boardSizer=new ResizeObserver(fitMobileBoard);
+    boardSizer.observe($('.game-panel'));
+    boardSizer.observe($('.board-number-pad'));
+  }
+  window.addEventListener('resize',fitMobileBoard);
+  window.visualViewport?.addEventListener('resize',fitMobileBoard);
   applyTheme(THEMES.includes(data.theme)?data.theme:'light');
   const today=new Date(),didRefresh=cleanRefreshParam();$('#todayLabel').textContent=today.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'}).toUpperCase();bind();
-  if(!acceptShared()){if(data.current&&!data.current.finished){game=data.current;game.notes=game.notes||Array.from({length:81},()=>[]);game.correctMoves=Number.isFinite(game.correctMoves)?game.correctMoves:Math.max(0,game.board.reduce((n,v,i)=>n+(!game.puzzle[i]&&v===game.solution[i]?1:0),0)-(game.hints||0));paused=Boolean(game.paused);selected=-1;render();startTimer();$('#gameTitle').textContent='Welcome back';$('#gameSubtitle').textContent=paused?'Your puzzle is still paused.':'Your puzzle is right where you left it.'}else newGame(getLevel())}if(didRefresh)setTimeout(()=>toast('App refreshed to the latest version'),150)
+  if(!acceptShared()){if(data.current&&!data.current.finished){game=data.current;game.notes=game.notes||Array.from({length:81},()=>[]);game.correctMoves=Number.isFinite(game.correctMoves)?game.correctMoves:Math.max(0,game.board.reduce((n,v,i)=>n+(!game.puzzle[i]&&v===game.solution[i]?1:0),0)-(game.hints||0));paused=Boolean(game.paused);selected=-1;render();startTimer();$('#gameTitle').textContent='Welcome back';$('#gameSubtitle').textContent=paused?'Your puzzle is still paused.':'Your puzzle is right where you left it.'}else newGame(getLevel())}fitMobileBoard();if(didRefresh)setTimeout(()=>toast('App refreshed to the latest version'),150)
 })();
 </script>
 </body>
