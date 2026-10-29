@@ -207,11 +207,31 @@
   function getLevel(solved=data.games.length){let i=0;for(let n=0;n<LEVELS.length;n++)if(solved>=LEVELS[n].opens)i=n;return i}
   function seeded(seed){let x=seed>>>0;return()=>((x=(x*1664525+1013904223)>>>0)/4294967296)}
   function shuffled(a,rng){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-  function solve(b,limit=2){let count=0,answer=null;const cand=(i)=>{const r=Math.floor(i/9),c=i%9,used=new Set();for(let k=0;k<9;k++){used.add(b[r*9+k]);used.add(b[k*9+c]);used.add(b[Math.floor(r/3)*27+Math.floor(c/3)*3+Math.floor(k/3)*9+k%3])}return[1,2,3,4,5,6,7,8,9].filter(n=>!used.has(n))};function go(){if(count>=limit)return;let best=-1,opts=null;for(let i=0;i<81;i++)if(!b[i]){const a=cand(i);if(!a.length)return;if(opts===null||a.length<opts.length){best=i;opts=a;if(a.length===1)break}}if(best<0){count++;if(!answer)answer=b.slice();return}for(const n of opts){b[best]=n;go();b[best]=0;if(count>=limit)return}}go();return{count,solution:answer}}
-  function makePuzzle(level){const rng=seeded((Date.now()^Math.floor(Math.random()*0xffffffff))>>>0);
-    const bands=shuffled([0,1,2],rng),rowOrder=bands.flatMap(b=>shuffled([0,1,2],rng).map(r=>b*3+r));
-    const stacks=shuffled([0,1,2],rng),colOrder=stacks.flatMap(s=>shuffled([0,1,2],rng).map(c=>s*3+c));
-    const nums=shuffled([1,2,3,4,5,6,7,8,9],rng);const sol=Array(81).fill(0);for(let r=0;r<9;r++)for(let c=0;c<9;c++)sol[r*9+c]=nums[(rowOrder[r]*3+Math.floor(rowOrder[r]/3)+colOrder[c])%9];
+  function solve(b,limit=2,rng=null){let count=0,answer=null;const cand=(i)=>{const r=Math.floor(i/9),c=i%9,used=new Set();for(let k=0;k<9;k++){used.add(b[r*9+k]);used.add(b[k*9+c]);used.add(b[Math.floor(r/3)*27+Math.floor(c/3)*3+Math.floor(k/3)*9+k%3])}return[1,2,3,4,5,6,7,8,9].filter(n=>!used.has(n))};function go(){if(count>=limit)return;let best=-1,opts=null;for(let i=0;i<81;i++)if(!b[i]){const a=cand(i);if(!a.length)return;if(opts===null||a.length<opts.length){best=i;opts=a;if(a.length===1)break}}if(best<0){count++;if(!answer)answer=b.slice();return}for(const n of (rng?shuffled(opts,rng):opts)){b[best]=n;go();b[best]=0;if(count>=limit)return}}go();return{count,solution:answer}}
+  // Compare the three unordered triples in each box of a band (or stack).
+  // A full repeating partition gives away groups without Sudoku deductions.
+  function hasRepeatedTriples(board){
+    for(const transpose of [false,true]){
+      const at=(r,c)=>board[transpose?c*9+r:r*9+c];
+      for(let band=0;band<3;band++){
+        const partitions=[];
+        for(let box=0;box<3;box++){
+          const triples=[];
+          for(let row=0;row<3;row++){
+            triples.push([0,1,2].map(col=>at(band*3+row,box*3+col)).sort().join(''));
+          }
+          partitions.push(triples.sort().join('|'));
+        }
+        if(partitions.every(partition=>partition===partitions[0]))return true;
+      }
+    }
+    return false;
+  }
+  function makePuzzle(level,rng=seeded((Date.now()^Math.floor(Math.random()*0xffffffff))>>>0)){
+    // Fill an empty grid instead of permuting a fixed cyclic template.
+    // Keep advancing the same RNG when rejecting a patterned solution.
+    let sol;
+    do{sol=solve(Array(81).fill(0),1,rng).solution}while(hasRepeatedTriples(sol));
     const puzzle=sol.slice(),target=LEVELS[level].clues,order=shuffled([...Array(81).keys()],rng);let removed=0;
     for(const i of order){if(removed>=81-target)break;const v=puzzle[i];puzzle[i]=0;if(solve(puzzle.slice(),2).count!==1)puzzle[i]=v;else removed++}
     return{puzzle,solution:sol};
