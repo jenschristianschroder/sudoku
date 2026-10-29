@@ -27,3 +27,20 @@ The app works from a project path (for example, `https://username.github.io/repo
 ## Storage and privacy
 
 Game state, history, and preferences are saved in the browser's local storage on the device. There is no account, cloud sync, or game database. Browser storage is not encrypted, can be accessed by someone using the same browser profile, and is removed if the site's stored data is cleared. A share link contains the puzzle and its filled cells, but not game statistics; anyone with that link can open the puzzle.
+
+## Generator checks
+
+Completed grids are built with randomized backtracking. Grids with the same three
+unordered digit triples repeated across every box of a band or stack are rejected.
+Clues are then removed only when the puzzle still has exactly one solution.
+Difficulty levels retain their existing clue targets; these are not ratings of
+human solving techniques.
+
+Run the deterministic regression suite with Node.js:
+
+```sh
+node --test tests/generator.test.cjs
+```
+
+It covers the reported repeating pattern, both orientations, and 500 puzzles
+across all five levels, including an independent uniqueness check.
