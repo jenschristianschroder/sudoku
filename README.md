@@ -20,6 +20,7 @@ The app works from a project path (for example, `https://username.github.io/repo
 - Sudoku generation with a unique solution for each new puzzle.
 - Notes, hints, undo, pause, keyboard input, conflict highlighting, and autosave.
 - Per-game history, solve times, mistakes, hints, streak, average and best time.
+- Daily goal of one completed puzzle, with a visible streak and today’s 0/1 or 1/1 status. Consecutive local calendar days count once each; a missed day resets the streak. Existing game history counts automatically. The header includes all difficulties; the Statistics streak follows the difficulty filter.
 - Share links for active puzzles and completed games, plus a JSON stats export.
 - Light, dark, Forest, Ocean, Rose, and Sunset themes in the settings menu.
 - Responsive modern interface with a large game board, focused controls, live board progress, and quick access to all statistics.
@@ -39,7 +40,7 @@ human solving techniques.
 Run the deterministic regression suite with Node.js:
 
 ```sh
-node --test tests/generator.test.cjs
+node --test tests/*.test.cjs
 ```
 
 It covers the reported repeating pattern, both orientations, and 500 puzzles
