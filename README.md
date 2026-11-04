@@ -19,6 +19,7 @@ The app works from a project path (for example, `https://username.github.io/repo
 - Five difficulty levels, unlocked after 0, 3, 8, 15, and 25 completed games.
 - Sudoku generation with a unique solution for each new puzzle.
 - Notes, hints, undo, pause, keyboard input, conflict highlighting, and autosave.
+- A label below the board when no logical placement is found from the current numbers.
 - Per-game history, solve times, mistakes, hints, streak, average and best time.
 - Share links for active puzzles and completed games, plus a JSON stats export.
 - Light, dark, Forest, Ocean, Rose, and Sunset themes in the settings menu.
@@ -28,7 +29,20 @@ The app works from a project path (for example, `https://username.github.io/repo
 
 Game state, history, and preferences are saved in the browser's local storage on the device. There is no account, cloud sync, or game database. Browser storage is not encrypted, can be accessed by someone using the same browser profile, and is removed if the site's stored data is cleared. A share link contains the puzzle and its filled cells, but not game statistics; anyone with that link can open the puzzle.
 
-## Generator checks
+## Logical-move label
+
+The label reads “No logical moves found — guessing may be needed.” It checks the
+current board after entries, erasing, undo, hints, and loading a game. Pencil notes
+do not affect the result. It stays hidden while paused, after completion, and while
+an incorrect entry is highlighted.
+
+The checker looks for naked and hidden singles, including those exposed by locked
+candidates, naked and hidden pairs/triples/quads, X-Wings, Swordfish, Jellyfish,
+and XY-Wings. It uses neither trial placements nor the saved solution to find a
+move. “May be needed” is intentional: a finite set of techniques cannot rule out
+every more advanced deduction. Analysis never fills a cell or changes notes.
+
+## Checks
 
 Completed grids are built with randomized backtracking. Grids with the same three
 unordered digit triples repeated across every box of a band or stack are rejected.
@@ -39,8 +53,11 @@ human solving techniques.
 Run the deterministic regression suite with Node.js:
 
 ```sh
-node --test tests/generator.test.cjs
+node --test tests/*.test.cjs
 ```
 
 It covers the reported repeating pattern, both orientations, and 500 puzzles
 across all five levels, including an independent uniqueness check.
+Logical-move checks include forced deductions verified by an independent solver,
+stalled and invalid boards, and label updates through gameplay actions.
+
