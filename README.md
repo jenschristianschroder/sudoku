@@ -21,6 +21,7 @@ The app works from a project path (for example, `https://username.github.io/repo
 - Notes, hints, undo, pause, keyboard input, conflict highlighting, and autosave.
 - A label below the board when no logical placement is found from the current numbers.
 - Per-game history, solve times, mistakes, hints, streak, average and best time.
+- Daily goal of one completed puzzle, with a visible streak and today’s 0/1 or 1/1 status. Consecutive local calendar days count once each; a missed day resets the streak. Existing game history counts automatically. The header includes all difficulties; the Statistics streak follows the difficulty filter.
 - Share links for active puzzles and completed games, plus a JSON stats export.
 - Light, dark, Forest, Ocean, Rose, and Sunset themes in the settings menu.
 - Responsive modern interface with a large game board, focused controls, live board progress, and quick access to all statistics.
