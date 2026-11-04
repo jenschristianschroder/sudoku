@@ -58,6 +58,7 @@
     [data-theme] .num-btn:disabled{background:var(--soft);color:var(--muted)}
     [data-theme] .settings-menu{background:var(--menu-bg);border-color:var(--line)}
     .board-number-pad{max-width:640px;margin:12px auto 0}.board-number-pad .numbers{grid-template-columns:repeat(9,1fr);gap:7px;margin:0}.board-number-pad .num-btn{height:52px;border-radius:13px;font-size:22px}
+    .logical-status{margin:0 0 7px;padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--soft);color:var(--button-text);text-align:center;font-size:11px;line-height:1.4}
     @media(max-width:980px){.app{padding:24px}.topbar{grid-template-columns:auto 1fr auto}.brand{font-size:24px}.difficulty-tab{padding:10px 12px}.play-shell{grid-template-columns:minmax(430px,1fr) 310px}.dashboard-strip{grid-template-columns:1fr}.stats-grid{grid-template-columns:repeat(4,1fr)}.stats-page .stats-cards{grid-template-columns:repeat(3,1fr)}}
     @media(max-width:760px){.app{padding:16px 12px 36px}.topbar{display:flex;flex-wrap:wrap;height:auto;margin-bottom:18px}.brand{order:1}.profile{order:2;margin-left:auto}.difficulty-nav{order:3;width:100%;justify-content:flex-start}.play-shell{grid-template-columns:1fr}.game-panel{padding:10px}.control-panel{padding:17px}.board-number-pad{margin-top:9px}.board-number-pad .numbers{grid-template-columns:repeat(9,1fr);gap:5px}.board-number-pad .num-btn{height:49px;font-size:20px}.num-btn small{display:none}.dashboard-strip{grid-template-columns:1fr}.stats-grid{grid-template-columns:repeat(2,1fr)}.settings-menu{position:fixed;top:76px;right:12px;left:12px;width:auto}.stats-page .stats-cards{grid-template-columns:1fr 1fr}.stats-hero{grid-template-columns:1fr 1fr;padding:20px}.history-panel{overflow:auto}.history-table{min-width:580px}}
     @media(max-width:430px){.difficulty-tab{padding:9px 11px;font-size:11px}.brand{font-size:21px}.stats-shortcut{display:none}.session-level{font-size:20px}.tools{gap:4px}.tool-btn,.text-btn{font-size:9px}.extra-themes .theme-picks{grid-template-columns:repeat(2,1fr)}}
@@ -162,7 +163,7 @@
       <section class="panel game-panel" aria-label="Sudoku game">
         <div class="game-head"><div><h2 id="gameTitle">A fresh puzzle</h2><p id="gameSubtitle">Take your time. The board will wait.</p></div><div class="level-chip"><span class="dot"></span><span id="levelBadge">Easy</span></div></div>
         <div class="board-wrap"><div class="board" id="board" role="grid" aria-label="Sudoku board"></div><div class="pause-cover" id="pauseCover"><strong>Paused</strong><span>Your time is safe. Take a breath.</span><button class="primary-btn" id="resumeBtn">Resume puzzle</button></div></div>
-        <div class="board-number-pad"><div class="numbers" id="numbers" aria-label="Choose a number"></div></div>
+        <div class="board-number-pad"><p class="logical-status" id="logicalStatus" role="status" aria-live="polite" aria-atomic="true" hidden></p><div class="numbers" id="numbers" aria-label="Choose a number"></div></div>
       </section>
       <aside class="control-column">
         <section class="panel control-panel" aria-label="Game controls"><div class="session-head"><div><div class="session-level" id="sessionLevel">Easy</div><span style="font-size:10px;color:var(--muted)">CURRENT PUZZLE</span></div><div class="timer"><small>TIME</small><span id="timer">00:00</span></div></div><div class="session-metrics"><div class="metric"><span>Mistakes</span><strong id="mistakesValue">0 / 3</strong></div><div class="metric"><span>Board progress</span><strong id="boardProgress">0%</strong></div></div><div class="tools"><div class="tool-left"><button class="tool-btn" id="notesBtn">✎<br>Notes</button><button class="tool-btn" id="undoBtn" title="Undo last move">↶<br>Undo</button><button class="text-btn" id="eraseBtn">◇<br>Erase</button><button class="tool-btn" id="hintBtn">◉<br>Hint</button></div><button class="tool-btn" id="shareActive" title="Share puzzle">↗<br>Share</button></div><div class="game-actions control-actions"><button class="icon-btn" id="pauseBtn" title="Pause" aria-label="Pause">Ⅱ Pause</button><button class="icon-btn" id="newBtn" title="New puzzle" aria-label="New puzzle">＋ New</button><button class="icon-btn" data-view="stats" title="Statistics">◫ Stats</button></div></section>
@@ -236,6 +237,116 @@
     for(const i of order){if(removed>=81-target)break;const v=puzzle[i];puzzle[i]=0;if(solve(puzzle.slice(),2).count!==1)puzzle[i]=v;else removed++}
     return{puzzle,solution:sol};
   }
+  // Logical analysis uses only the visible numbers, never the saved solution,
+  // player notes, trial placements or the backtracking puzzle generator.
+  const LOGIC_UNITS=Array.from({length:27},(_,u)=>Array.from({length:9},(_,k)=>
+    u<9?u*9+k:u<18?k*9+u-9:Math.floor((u-18)/3)*27+(u-18)%3*3+Math.floor(k/3)*9+k%3));
+  const LOGIC_CELL_UNITS=Array.from({length:81},(_,i)=>LOGIC_UNITS.map((unit,u)=>unit.includes(i)?u:-1).filter(u=>u>=0));
+  const LOGIC_PEERS=LOGIC_CELL_UNITS.map((units,i)=>new Set(units.flatMap(u=>LOGIC_UNITS[u]).filter(j=>j!==i)));
+  function bitCount(mask){let count=0;for(;mask;mask&=mask-1)count++;return count}
+  function someCombination(items,size,visit,start=0,chosen=[]){
+    if(chosen.length===size)return visit(chosen);
+    for(let i=start;i<=items.length-(size-chosen.length);i++){
+      chosen.push(items[i]);const found=someCombination(items,size,visit,i+1,chosen);chosen.pop();
+      if(found)return true;
+    }
+    return false;
+  }
+  function removeLogicalCandidates(candidates,cells,mask){
+    let changed=false;
+    for(const i of cells)if(candidates[i]&mask){candidates[i]&=~mask;changed=true}
+    return changed;
+  }
+  function eliminateLockedCandidates(candidates){
+    for(let u=0;u<27;u++)for(let n=1;n<=9;n++){
+      const bit=1<<n,places=LOGIC_UNITS[u].filter(i=>candidates[i]&bit);
+      if(places.length<2)continue;
+      for(const other of LOGIC_CELL_UNITS[places[0]])if(other!==u&&places.every(i=>LOGIC_CELL_UNITS[i].includes(other))){
+        if(removeLogicalCandidates(candidates,LOGIC_UNITS[other].filter(i=>!LOGIC_CELL_UNITS[i].includes(u)),bit))return true;
+      }
+    }
+    return false;
+  }
+  function eliminateLogicalSubsets(candidates){
+    for(let size=2;size<=4;size++)for(const unit of LOGIC_UNITS){
+      const cells=unit.filter(i=>candidates[i]);
+      // N cells restricted to N digits reserve those digits for those cells.
+      if(someCombination(cells.filter(i=>bitCount(candidates[i])<=size),size,group=>{
+        const mask=group.reduce((m,i)=>m|candidates[i],0);
+        return bitCount(mask)===size&&removeLogicalCandidates(candidates,cells.filter(i=>!group.includes(i)),mask);
+      }))return true;
+      // N digits restricted to N cells exclude every other digit in those cells.
+      const digits=Array.from({length:9},(_,k)=>1<<(k+1)).filter(bit=>cells.some(i=>candidates[i]&bit));
+      if(someCombination(digits,size,group=>{
+        const mask=group.reduce((m,bit)=>m|bit,0),places=cells.filter(i=>candidates[i]&mask);
+        return places.length===size&&removeLogicalCandidates(candidates,places,1022&~mask);
+      }))return true;
+    }
+    return false;
+  }
+  function eliminateLogicalFish(candidates){
+    // X-Wing, Swordfish and Jellyfish, in both row and column orientations.
+    for(let size=2;size<=4;size++)for(const transpose of [false,true])for(let n=1;n<=9;n++){
+      const bit=1<<n,at=(r,c)=>transpose?c*9+r:r*9+c;
+      const lines=Array.from({length:9},(_,r)=>({r,mask:Array.from({length:9},(_,c)=>c).reduce((mask,c)=>mask|((candidates[at(r,c)]&bit)?1<<c:0),0)}));
+      const eligible=lines.filter(line=>bitCount(line.mask)>=2&&bitCount(line.mask)<=size);
+      if(someCombination(eligible,size,group=>{
+        const cover=group.reduce((mask,line)=>mask|line.mask,0);
+        if(bitCount(cover)!==size)return false;
+        const cells=[];
+        for(let r=0;r<9;r++)if(!group.some(line=>line.r===r))for(let c=0;c<9;c++)if(cover&(1<<c))cells.push(at(r,c));
+        return removeLogicalCandidates(candidates,cells,bit);
+      }))return true;
+    }
+    return false;
+  }
+  function eliminateLogicalWings(candidates){
+    const pairs=candidates.map((mask,i)=>bitCount(mask)===2?i:-1).filter(i=>i>=0);
+    for(const pivot of pairs){
+      const wings=pairs.filter(i=>LOGIC_PEERS[pivot].has(i)&&bitCount(candidates[i]&candidates[pivot])===1);
+      if(someCombination(wings,2,([a,b])=>{
+        const common=candidates[a]&candidates[b];
+        if(bitCount(common)!==1||(common&candidates[pivot])||bitCount(candidates[pivot]|candidates[a]|candidates[b])!==3)return false;
+        return removeLogicalCandidates(candidates,[...LOGIC_PEERS[a]].filter(i=>LOGIC_PEERS[b].has(i)),common);
+      }))return true;
+    }
+    return false;
+  }
+  function analyzeLogicalMoves(board){
+    if(!Array.isArray(board)||board.length!==81||board.some(n=>!Number.isInteger(n)||n<0||n>9))return {status:'invalid'};
+    const used=LOGIC_UNITS.map(unit=>unit.reduce((mask,i)=>mask|(board[i]?1<<board[i]:0),0));
+    if(LOGIC_UNITS.some((unit,u)=>bitCount(used[u])!==unit.filter(i=>board[i]).length))return {status:'invalid'};
+    if(board.every(Boolean))return {status:'complete'};
+    const candidates=board.map((n,i)=>n?0:1022&~LOGIC_CELL_UNITS[i].reduce((mask,u)=>mask|used[u],0));
+    // Every pass removes at least one candidate, so this reaches a fixed point.
+    for(;;){
+      let move=null;
+      for(let i=0;i<81;i++)if(!board[i]){
+        if(!candidates[i])return {status:'invalid'};
+        if(bitCount(candidates[i])===1)move={status:'move',cell:i,value:Math.log2(candidates[i])};
+      }
+      for(let u=0;u<27;u++)for(let n=1;n<=9;n++)if(!(used[u]&(1<<n))){
+        const places=LOGIC_UNITS[u].filter(i=>candidates[i]&(1<<n));
+        if(!places.length)return {status:'invalid'};
+        if(places.length===1)move={status:'move',cell:places[0],value:n};
+      }
+      if(move)return move;
+      if(!eliminateLockedCandidates(candidates)&&!eliminateLogicalSubsets(candidates)&&!eliminateLogicalFish(candidates)&&!eliminateLogicalWings(candidates))return {status:'stuck'};
+    }
+  }
+  let logicalBoardKey='',logicalBoardStatus='';
+  function renderLogicalStatus(){
+    const label=$('#logicalStatus');let show=false;
+    // Existing mistake highlighting takes priority over suggesting a guess.
+    if(game&&!paused&&!game.finished&&!game.board.some((n,i)=>n&&n!==game.solution[i])){
+      const key=game.board.join('');
+      if(key!==logicalBoardKey){logicalBoardStatus=analyzeLogicalMoves(game.board).status;logicalBoardKey=key}
+      show=logicalBoardStatus==='stuck';
+    }
+    const message=show?'No logical moves found — guessing may be needed.':'';
+    if(label.textContent!==message)label.textContent=message;
+    label.hidden=!show;
+  }
   function newGame(level=getLevel()){const {puzzle,solution}=makePuzzle(level);game={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),puzzle,board:puzzle.slice(),solution,notes:Array.from({length:81},()=>[]),level,elapsed:0,hints:0,mistakes:0,correctMoves:0,startedAt:Date.now(),finished:false,shared:false,paused:false};selected=-1;notesMode=false;paused=false;undoStack=[];data.current=game;saveData();render();startTimer();$('#gameTitle').textContent='A fresh puzzle';$('#gameSubtitle').textContent='Take your time. The board will wait.'}
   function acceptShared(){if(!location.hash.startsWith('#s='))return false;try{const raw=decodeURIComponent(escape(atob(location.hash.slice(3).replace(/-/g,'+').replace(/_/g,'/'))));const d=JSON.parse(raw);if(!Array.isArray(d.p)||d.p.length!==81||d.p.some(x=>!Number.isInteger(x)||x<0||x>9))throw 0;const solution=solve(d.p.slice(),2);if(solution.count!==1)throw 0;const board=Array.isArray(d.b)&&d.b.length===81?d.b.map((x,i)=>d.p[i]?d.p[i]:(Number.isInteger(x)&&x>=0&&x<=9?x:0)):d.p.slice();game={id:String(Date.now()),puzzle:d.p,board,solution:solution.solution,notes:Array.from({length:81},()=>[]),level:Math.min(4,Math.max(0,d.l|0)),elapsed:0,hints:0,mistakes:0,correctMoves:0,startedAt:Date.now(),finished:false,shared:true,paused:false};paused=false;data.current=game;saveData();history.replaceState(null,'',location.pathname+location.search);render();startTimer();$('#gameTitle').textContent='A shared puzzle';$('#gameSubtitle').textContent='Someone sent you a Sudoku. Make it yours.';toast('Shared puzzle opened');return true}catch{history.replaceState(null,'',location.pathname+location.search);toast('That share link could not be opened.');return false}}
   function share(g){const payload={p:g.puzzle,b:g.board,l:g.level};const b64=btoa(unescape(encodeURIComponent(JSON.stringify(payload)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');const url=location.origin+location.pathname+location.search+'#s='+b64;navigator.clipboard?.writeText(url).then(()=>toast('Share link copied to clipboard')).catch(()=>fallbackCopy(url));if(!navigator.clipboard)fallbackCopy(url)}
@@ -244,7 +355,7 @@
   function setPaused(value){if(!game||game.finished)return;paused=Boolean(value);game.paused=paused;data.current=game;saveData();render()}
   async function refreshApp(){const button=$('#refreshAppBtn'),original=button.textContent,url=new URL(location.href);button.disabled=true;button.textContent='Checking…';url.searchParams.set('_refresh',Date.now().toString());try{const response=await fetch(url.toString(),{cache:'no-store'});if(!response.ok)throw new Error(String(response.status));location.replace(url.toString())}catch{button.disabled=false;button.textContent=original;toast('Could not refresh. Check your connection and try again.')}}
   function cleanRefreshParam(){const url=new URL(location.href);if(!url.searchParams.has('_refresh'))return false;url.searchParams.delete('_refresh');history.replaceState(null,'',url.pathname+url.search+url.hash);return true}
-  function render(){if(!game)return;const levelName=LEVELS[game.level].name;$('#levelBadge').textContent=levelName;$('#sessionLevel').textContent=levelName;$('#timer').textContent=fmt(game.elapsed);$('#mistakesValue').textContent=`${game.mistakes||0} / 3`;const open=game.board.reduce((n,v,i)=>n+(!game.puzzle[i]&&v===game.solution[i]?1:0),0),fillable=game.puzzle.filter(v=>!v).length;$('#boardProgress').textContent=`${Math.round(open/Math.max(1,fillable)*100)}%`;renderBoard();renderNumbers();renderProgress();renderStats();renderRecent();renderSettings();$('#notesBtn').classList.toggle('active',notesMode);$('#pauseCover').classList.toggle('visible',paused);$('#pauseBtn').innerHTML=paused?'▶ Resume':'Ⅱ Pause';$('#hintBtn').disabled=game.finished}
+  function render(){if(!game)return;const levelName=LEVELS[game.level].name;$('#levelBadge').textContent=levelName;$('#sessionLevel').textContent=levelName;$('#timer').textContent=fmt(game.elapsed);$('#mistakesValue').textContent=`${game.mistakes||0} / 3`;const open=game.board.reduce((n,v,i)=>n+(!game.puzzle[i]&&v===game.solution[i]?1:0),0),fillable=game.puzzle.filter(v=>!v).length;$('#boardProgress').textContent=`${Math.round(open/Math.max(1,fillable)*100)}%`;renderBoard();renderNumbers();renderLogicalStatus();renderProgress();renderStats();renderRecent();renderSettings();$('#notesBtn').classList.toggle('active',notesMode);$('#pauseCover').classList.toggle('visible',paused);$('#pauseBtn').innerHTML=paused?'▶ Resume':'Ⅱ Pause';$('#hintBtn').disabled=game.finished}
   function renderBoard(){const el=$('#board');el.innerHTML='';const chosenValue=selected>=0?game.board[selected]:0;for(let i=0;i<81;i++){const b=document.createElement('button');b.className='cell';b.type='button';b.setAttribute('role','gridcell');b.setAttribute('aria-label',`Row ${Math.floor(i/9)+1}, column ${i%9+1}${game.board[i]?', '+game.board[i]:', empty'}`);b.dataset.i=i;const v=game.board[i];if(v){b.textContent=v;if(game.puzzle[i])b.classList.add('given')}else if(game.notes[i]?.length){const ns=document.createElement('span');ns.className='notes';for(let n=1;n<=9;n++){const s=document.createElement('span');s.textContent=game.notes[i].includes(n)?n:'';ns.append(s)}b.append(ns)}if(selected>=0){if(i===selected)b.classList.add('selected');else if(Math.floor(i/9)===Math.floor(selected/9)||i%9===selected%9||Math.floor(Math.floor(i/9)/3)===Math.floor(Math.floor(selected/9)/3)&&Math.floor((i%9)/3)===Math.floor((selected%9)/3))b.classList.add('peer');if(chosenValue&&v===chosenValue)b.classList.add('same')}if(v&&!game.puzzle[i]&&v!==game.solution[i]){b.classList.add('mistake');b.setAttribute('aria-invalid','true')}if(v&&!game.puzzle[i]&&conflict(i,v))b.classList.add('conflict');b.addEventListener('click',()=>{selected=i;renderBoard()});el.append(b)}el.classList.toggle('completed',game.finished)}
   function conflict(i,n){const r=Math.floor(i/9),c=i%9;for(let k=0;k<9;k++)if(k!==c&&game.board[r*9+k]===n||k!==r&&game.board[k*9+c]===n)return true;const r0=Math.floor(r/3)*3,c0=Math.floor(c/3)*3;for(let rr=r0;rr<r0+3;rr++)for(let cc=c0;cc<c0+3;cc++)if((rr!==r||cc!==c)&&game.board[rr*9+cc]===n)return true;return false}
   function renderNumbers(){const box=$('#numbers');box.innerHTML='';for(let n=1;n<=9;n++){const count=game.board.filter(x=>x===n).length,b=document.createElement('button');b.className='num-btn';b.type='button';b.disabled=count>=9||game.finished;b.innerHTML=`${n}<small>${9-count}</small>`;b.addEventListener('click',()=>enter(n));box.append(b)}}
@@ -294,3 +405,4 @@
 </script>
 </body>
 </html>
+
